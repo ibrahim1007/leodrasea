@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leodra - Kegiatan Harian & Pencatatan Keuangan</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom font-inter for consistency */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #f8f8f8; /* Slightly off-white for background */
+        }
+        /* Style for the semi-transparent header with backdrop-filter */
+        .header-blur {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
+        }
+        /* Ensure checkbox is visible and clickable */
+        .form-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            border: 2px solid #a0aec0; /* Tailwind gray-400 */
+            border-radius: 0.375rem; /* Tailwind rounded-md */
+            width: 1.5rem; /* h-6 */
+            height: 1.5rem; /* w-6 */
+            cursor: pointer;
+            display: inline-block;
+            vertical-align: middle;
+            position: relative;
+        }
+        .form-checkbox:checked {
+            background-color: #2563eb; /* Tailwind blue-600 */
+            border-color: #2563eb;
+        }
+        .form-checkbox:checked::after {
+            content: '✓'; /* Checkmark */
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-white font-light text-gray-800 flex flex-col items-center p-0">
+
+    <!-- Header Section -->
+    <header class="fixed top-0 left-0 right-0 bg-white bg-opacity-70 header-blur z-50 w-full px-4 py-3 flex justify-between items-center border-b border-gray-100 sm:px-8 sm:py-4">
+        <div class="text-black text-xl font-light z-10">Leodra</div>
+
+        <!-- Date and time for mobile (flex-grow) -->
+        <div id="current-datetime-mobile" class="text-black text-xs font-light text-center flex-grow mx-2 sm:hidden">
+            <!-- Date and time for mobile -->
+        </div>
+        <!-- Date and time for desktop (absolute centered) -->
+        <div id="current-datetime-desktop" class="hidden sm:block absolute left-1/2 transform -translate-x-1/2 text-black text-sm font-light z-0">
+            <!-- Date and time for desktop -->
+        </div>
+
+        <!-- Navigation Links (hidden on small screens, flex on small screens and up) -->
+        <nav id="desktop-nav" class="hidden sm:flex items-center z-10">
+            <a href="#" class="text-black text-base font-light mr-4 no-underline hover:underline">Beranda</a>
+            <a href="/pencatatan.html" class="text-black text-base font-light no-underline hover:underline">Pencatatan Keuangan</a>
+        </nav>
+
+        <!-- Hamburger Menu Button (visible on small screens only) -->
+        <button id="hamburger-button" class="sm:hidden text-gray-800 focus:outline-none z-10">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Mobile Navigation Overlay (initially hidden) -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-white bg-opacity-95 header-blur z-40 hidden flex-col items-center justify-center">
+        <button id="close-mobile-menu" class="absolute top-4 right-4 text-gray-800 focus:outline-none">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <a href="#" class="text-black text-2xl font-light mb-6 no-underline hover:underline" onclick="document.getElementById('mobile-menu-overlay').classList.add('hidden');">Beranda</a>
+        <a href="/pencatatan.html" class="text-black text-2xl font-light no-underline hover:underline" onclick="document.getElementById('mobile-menu-overlay').classList.add('hidden');">Pencatatan Keuangan</a>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-6xl mx-auto mt-24 mb-8 border border-gray-100">
+        <h1 class="text-2xl font-light text-center mb-8 text-gray-900">Kegiatan Harian</h1>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-light mb-4 text-gray-800">Daftar Kegiatan</h2>
+            <ul id="activity-list" class="space-y-3">
+                <!-- Activities will be dynamically inserted here by JavaScript -->
+            </ul>
+        </div>
+
+        <div class="mb-8 text-center">
+            <h2 class="text-2xl font-light text-gray-800">Tugas Selesai Hari Ini: <span id="completed-tasks-count" class="text-blue-600">0</span></h2>
+        </div>
+
+        <!-- Daily Cumulative Progress Chart -->
+        <div class="mt-8">
+            <h2 class="text-2xl font-light text-center mb-4 text-gray-800">Progres Harian Saat Ini</h2>
+            <div class="w-full h-80">
+                <canvas id="daily-progress-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Historical Daily Progress Chart -->
+        <div class="mt-8">
+            <h2 class="text-2xl font-light text-center mb-4 text-gray-800">Progres Kegiatan Harian (30 Hari Terakhir)</h2>
+            <div class="w-full h-80">
+                <canvas id="historical-progress-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="w-full bg-gray-50 text-center py-4 mt-8 border-t border-gray-100">
+        <p class="text-sm text-gray-600">&copy; 2024 Leodra. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Initial daily activities data
+        const initialActivities = [
+            { id: 'shubuh', time: '05.00', name: 'Sholat Shubuh', completed: false, notified: false },
+            { id: 'awal', time: '06.00', name: 'Waktu Awal', completed: false, notified: false },
+            { id: 'coding1', time: '07.00', name: 'Belajar Coding', completed: false, notified: false },
+            { id: 'buku', time: '09.00', name: 'Baca Buku', completed: false, notified: false },
+            { id: 'pindah1', time: '09.00', name: 'Perpindahan Waktu', completed: false, notified: false },
+            { id: 'break', time: '10.00', name: 'Break', completed: false, notified: false },
+            { id: 'pindah2', time: '12.00', name: 'Perpindahan Waktu', completed: false, notified: false },
+            { id: 'dzuhur', time: '12.00', name: 'Sholat Dzuhur', completed: false, notified: false },
+            { id: 'coding2', time: '13.00', name: 'Belajar Coding', completed: false, notified: false },
+            { id: 'pindah3', time: '15.00', name: 'Perpindahan Waktu', completed: false, notified: false },
+            { id: 'ashar', time: '15.00', name: 'Sholat Ashar', completed: false, notified: false },
+            { id: 'marketing', time: '16.00', name: 'Belajar Marketing', completed: false, notified: false },
+            { id: 'pindah4', time: '18.00', name: 'Perpindahan Waktu', completed: false, notified: false },
+            { id: 'magrib', time: '18.10', name: 'Sholat Magrib', completed: false, notified: false },
+            { id: 'coding3', time: '19.00', name: 'Belajar Coding', completed: false, notified: false },
+            { id: 'isya', time: '19.10', name: 'Sholat Isya', completed: false, notified: false },
+            { id: 'pindah5', time: '21.00', name: 'Perpindahan Waktu', completed: false, notified: false },
+            { id: 'coding4', time: '22.00', name: 'Belajar Coding', completed: false, notified: false },
+            { id: 'penutup', time: '00.00', name: 'Waktu Penutup', completed: false, notified: false },
+            { id: 'istirahat', time: '00.30', name: 'Istirahat', completed: false, notified: false },
+        ];
+
+        let activities = [];
+        let chartData = []; // For daily total completed tasks over time
+        let dailyProgressChartData = []; // For cumulative progress within the current day
+
+        let historicalChartInstance;
+        let dailyChartInstance;
+
+        // Function to get today's date in YYYY-MM-DD format
+        const getTodayDate = () => {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0); // Set to start of the day for consistent comparison
+            return date.toISOString().split('T')[0];
+        };
+
+        // Function to save data to localStorage
+        const saveData = () => {
+            localStorage.setItem('activities', JSON.stringify(activities));
+            localStorage.setItem('chartData', JSON.stringify(chartData));
+        };
+
+        // Function to load data from localStorage
+        const loadData = () => {
+            const storedActivities = localStorage.getItem('activities');
+            const storedChartData = localStorage.getItem('chartData');
+            const storedLastResetDate = localStorage.getItem('lastResetDate');
+
+            if (storedActivities) {
+                const parsedActivities = JSON.parse(storedActivities);
+                // Ensure 'notified' property exists for old data
+                activities = parsedActivities.map(activity => ({
+                    ...activity,
+                    notified: activity.notified !== undefined ? activity.notified : false
+                }));
+            } else {
+                activities = JSON.parse(JSON.stringify(initialActivities)); // Deep copy initial activities
+            }
+
+            if (storedChartData) {
+                chartData = JSON.parse(storedChartData);
+            } else {
+                chartData = [];
+            }
+
+            const today = getTodayDate();
+            if (storedLastResetDate !== today) {
+                // If the last reset date is not today, reset activities
+                console.log('Tanggal terakhir reset berbeda, mereset kegiatan.');
+                resetDailyActivities();
+            }
+        };
+
+        // Function to reset daily activities
+        const resetDailyActivities = () => {
+            activities = initialActivities.map(activity => ({ ...activity, completed: false, notified: false })); // Reset notified too
+            localStorage.setItem('lastResetDate', getTodayDate());
+            renderActivities();
+            updateCharts();
+            saveData();
+            console.log('Kegiatan harian direset.');
+        };
+
+        // Function to render activities in the UI
+        const renderActivities = () => {
+            const activityList = document.getElementById('activity-list');
+            activityList.innerHTML = ''; // Clear existing list
+
+            let completedCount = 0;
+            activities.forEach(activity => {
+                const listItem = document.createElement('li');
+                listItem.className = 'flex items-center p-4 bg-gray-50 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-checkbox h-6 w-6 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer';
+                checkbox.checked = activity.completed;
+                checkbox.dataset.id = activity.id; // Store activity ID for easy lookup
+
+                checkbox.addEventListener('change', (event) => {
+                    const activityId = event.target.dataset.id;
+                    const index = activities.findIndex(a => a.id === activityId);
+                    if (index !== -1) {
+                        activities[index].completed = event.target.checked;
+                        renderActivities(); // Re-render to update completed status and count
+                        updateCharts();
+                        saveData();
+                    }
+                });
+
+                const divContent = document.createElement('div');
+                divContent.className = 'ml-4 flex-grow';
+
+                const spanTime = document.createElement('span');
+                spanTime.className = 'block text-sm font-light text-gray-500'; // Changed to font-light
+                spanTime.innerText = activity.time;
+
+                const spanName = document.createElement('span');
+                spanName.className = `block text-lg font-light ${activity.completed ? 'line-through text-gray-400' : 'text-gray-700'}`; // Changed to font-light
+                spanName.innerText = activity.name;
+
+                divContent.appendChild(spanTime);
+                divContent.appendChild(spanName);
+                listItem.appendChild(checkbox);
+                listItem.appendChild(divContent);
+                activityList.appendChild(listItem);
+
+                if (activity.completed) {
+                    completedCount++;
+                }
+            });
+            document.getElementById('completed-tasks-count').innerText = completedCount;
+        };
+
+        // Function to generate cumulative progress data for the current day's chart
+        const generateDailyProgressData = () => {
+            let cumulativeCount = 0;
+            const progressData = [];
+            // Sort activities by time to ensure correct cumulative order
+            const sortedActivities = [...activities].sort((a, b) => {
+                const timeA = parseInt(a.time.replace(':', ''));
+                const timeB = parseInt(b.time.replace(':', ''));
+                return timeA - timeB;
+            });
+
+            // Add a starting point at 00.00 with 0 completed tasks
+            progressData.push({ time: '00.00', completedCount: 0 });
+
+            sortedActivities.forEach(activity => {
+                if (activity.completed) {
+                    cumulativeCount++;
+                }
+                // Add a data point for each activity time, showing the cumulative count up to that point
+                const existingEntryIndex = progressData.findIndex(item => item.time === activity.time);
+                if (existingEntryIndex > -1) {
+                    progressData[existingEntryIndex].completedCount = Math.max(progressData[existingEntryIndex].completedCount, cumulativeCount);
+                } else {
+                    progressData.push({ time: activity.time, completedCount: cumulativeCount });
+                }
+            });
+            return progressData;
+        };
+
+        // Function to initialize and update charts
+        const updateCharts = () => {
+            // Historical Daily Progress Chart
+            const historicalCtx = document.getElementById('historical-progress-chart').getContext('2d');
+            if (historicalChartInstance) {
+                historicalChartInstance.destroy();
+            }
+            historicalChartInstance = new Chart(historicalCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => d.date),
+                    datasets: [{
+                        label: 'Tugas Selesai',
+                        data: chartData.map(d => d.completed),
+                        borderColor: '#2563eb', // Tailwind blue-600
+                        tension: 0.1,
+                        fill: false,
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#2563eb',
+                        pointHoverBorderColor: '#fff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#6b7280' // Tailwind gray-500
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: initialActivities.length, // Max value is total activities
+                            grid: {
+                                color: '#e0e0e0' // Tailwind gray-200
+                            },
+                            ticks: {
+                                color: '#6b7280' // Tailwind gray-500
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend
+                        },
+                        tooltip: {
+                            backgroundColor: '#ffffff',
+                            borderColor: '#e0e0e0',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            titleColor: '#374151',
+                            bodyColor: '#1d4ed8',
+                            padding: 10,
+                        }
+                    }
+                }
+            });
+
+            // Daily Cumulative Progress Chart
+            dailyProgressChartData = generateDailyProgressData();
+            const dailyCtx = document.getElementById('daily-progress-chart').getContext('2d');
+            if (dailyChartInstance) {
+                dailyChartInstance.destroy();
+            }
+            dailyChartInstance = new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: dailyProgressChartData.map(d => d.time),
+                    datasets: [{
+                        label: 'Tugas Selesai Kumulatif',
+                        data: dailyProgressChartData.map(d => d.completedCount),
+                        borderColor: '#2563eb', // Tailwind blue-600
+                        tension: 0.1,
+                        fill: false,
+                        pointBackgroundColor: '#2563eb',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#2563eb',
+                        pointHoverBorderColor: '#fff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#6b7280' // Tailwind gray-500
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: initialActivities.length, // Max value is total activities
+                            grid: {
+                                color: '#e0e0e0' // Tailwind gray-200
+                            },
+                            ticks: {
+                                color: '#6b7280' // Tailwind gray-500
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend
+                        },
+                        tooltip: {
+                            backgroundColor: '#ffffff',
+                            borderColor: '#e0e0e0',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            titleColor: '#374151',
+                            bodyColor: '#1d4ed8',
+                            padding: 10,
+                        }
+                    }
+                }
+            });
+        };
+
+        // JavaScript to update the current date and time in the header and check for notifications
+        const updateDateTimeAndCheckNotifications = () => {
+            const now = new Date();
+            const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const formattedDate = now.toLocaleDateString('id-ID', optionsDate);
+            const formattedTime = now.toLocaleTimeString('id-ID', optionsTime);
+            
+            // Update both mobile and desktop datetime elements
+            document.getElementById('current-datetime-mobile').innerText = `${formattedDate}, ${formattedTime}`;
+            document.getElementById('current-datetime-desktop').innerText = `${formattedDate}, ${formattedTime}`;
+
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentSecond = now.getSeconds();
+
+            // Check for daily reset at 01:00 AM
+            if (currentHour === 1 && currentMinute === 0 && currentSecond === 0) {
+                const today = getTodayDate();
+                const lastResetDate = localStorage.getItem('lastResetDate');
+                if (lastResetDate !== today) {
+                    // Before resetting, save the number of completed tasks for today to chartData
+                    const currentCompleted = activities.filter(activity => activity.completed).length;
+                    const currentDayData = {
+                        date: getTodayDate(),
+                        completed: currentCompleted,
+                    };
+
+                    const existingIndex = chartData.findIndex(d => d.date === currentDayData.date);
+                    if (existingIndex > -1) {
+                        chartData[existingIndex] = currentDayData;
+                    } else {
+                        chartData.push(currentDayData);
+                    }
+                    chartData = chartData.slice(-30); // Limit to last 30 days
+                    saveData(); // Save updated chartData before reset
+                    resetDailyActivities();
+                }
+            }
+
+            // Check for activity notifications
+            activities.forEach((activity, index) => {
+                const [activityHour, activityMinute] = activity.time.split('.').map(Number);
+
+                if (
+                    !activity.notified && // Only notify if not already notified
+                    currentHour === activityHour &&
+                    currentMinute === activityMinute &&
+                    currentSecond === 0 // Trigger exactly at the minute mark
+                ) {
+                    if (Notification.permission === 'granted') {
+                        new Notification('Pengingat Kegiatan', {
+                            body: `Saatnya untuk: ${activity.name} pada ${activity.time}`,
+                            icon: 'https://placehold.co/64x64/000000/FFFFFF?text=🔔' // Placeholder icon
+                        });
+                        console.log(`Notifikasi dikirim untuk: ${activity.name}`);
+                        activities[index].notified = true; // Mark as notified
+                        saveData(); // Save updated activities state
+                        renderActivities(); // Re-render to reflect notified status if needed (though not visually shown)
+                    } else if (Notification.permission === 'denied') {
+                        console.warn('Notifikasi tidak dapat ditampilkan: Izin ditolak.');
+                    }
+                }
+            });
+        };
+
+        // Initial setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData(); // Load data first
+            renderActivities(); // Render activities based on loaded data
+            updateCharts(); // Initialize charts
+
+            // Request notification permission
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log('Izin notifikasi diberikan.');
+                    } else {
+                        console.warn('Izin notifikasi ditolak.');
+                    }
+                });
+            }
+
+            // Set up interval for date/time update and notification check
+            setInterval(updateDateTimeAndCheckNotifications, 1000);
+
+            // Hamburger menu toggle logic
+            const hamburgerButton = document.getElementById('hamburger-button');
+            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+            const closeMobileMenuButton = document.getElementById('close-mobile-menu');
+
+            if (hamburgerButton) {
+                hamburgerButton.addEventListener('click', () => {
+                    mobileMenuOverlay.classList.remove('hidden');
+                    mobileMenuOverlay.classList.add('flex'); // Show as flex column
+                });
+            }
+
+            if (closeMobileMenuButton) {
+                closeMobileMenuButton.addEventListener('click', () => {
+                    mobileMenuOverlay.classList.add('hidden');
+                    mobileMenuOverlay.classList.remove('flex');
+                });
+            }
+
+            // Add event listeners to hide overlay when a link is clicked
+            const mobileMenuLinks = mobileMenuOverlay.querySelectorAll('a');
+            mobileMenuLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenuOverlay.classList.add('hidden');
+                    mobileMenuOverlay.classList.remove('flex');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
